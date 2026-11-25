@@ -9,6 +9,9 @@
 - **定时弹窗提醒**：内置多种提前提醒策略并支持自定义提醒日期与时间，实时预览触发时间与倒计时，准点触发且重启后自动恢复。
 - **状态栏常驻通知**：在通知栏常驻展示今日待办列表，支持无任务时自动隐藏，内置权限状态自检与测试提醒。
 - **分类标签管理**：预置作业、实验报告、考试、项目等标签，支持自定义新增、重命名、配色与删除。
+<img width="502" height="1134" alt="图片" src="https://github.com/user-attachments/assets/4ca4e749-9bf4-4d73-8ca1-c055e9fb236f" />
+<img width="512" height="1093" alt="图片" src="https://github.com/user-attachments/assets/e1b0c886-2621-47ee-8726-3ed65468ce05" />
+
 
 ## 后续计划
 
