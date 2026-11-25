@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -29,15 +29,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,8 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -78,14 +74,16 @@ import com.todayddl.app.data.local.entity.TagEntity
 import com.todayddl.app.data.local.entity.TaskEntity
 import com.todayddl.app.domain.HomeTaskItem
 import com.todayddl.app.domain.SemesterDateCalculator
+import com.todayddl.app.domain.TaskStatusCalculator
 import com.todayddl.app.domain.UrgencyLevel
+import com.todayddl.app.ui.theme.AppIcons
 import com.todayddl.app.ui.theme.LocalUrgencyPalette
 import com.todayddl.app.ui.viewmodel.AppViewModelProvider
 import com.todayddl.app.ui.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
 import java.time.LocalDate
+import java.time.LocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onAddTaskClick: () -> Unit,
@@ -130,14 +128,16 @@ fun HomeScreen(
         }
     }
 
-    // Refresh clock at the start of every minute while visible in foreground
-    LaunchedEffect(lifecycleOwner) {
+    // Demand-driven clock refresh: sleep until the exact next countdown or date transition.
+    LaunchedEffect(lifecycleOwner, uiState.groupedTasks) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
+                val delayMillis = TaskStatusCalculator.computeNextUiRefreshDelayMillis(
+                    groupedTasks = uiState.groupedTasks,
+                    now = LocalDateTime.now()
+                )
+                delay(delayMillis)
                 viewModel.refreshClock()
-                val nowMillis = System.currentTimeMillis()
-                val millisUntilNextMinute = 60_000L - (nowMillis % 60_000L) + 100L
-                delay(millisUntilNextMinute)
             }
         }
     }
@@ -165,47 +165,52 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                title = {
-                    Column {
-                        Text(
-                            text = uiState.headerDateText,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        val activeCount = uiState.groupedTasks.overdue.size +
-                            uiState.groupedTasks.today.size +
-                            uiState.groupedTasks.upcoming.size
-                        Text(
-                            text = if (activeCount == 0) "暂无待办 DDL" else "共 $activeCount 项未完成 DDL",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "设置"
-                        )
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
+                    .padding(start = 18.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = uiState.headerDateText,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    val activeCount = uiState.groupedTasks.overdue.size +
+                        uiState.groupedTasks.today.size +
+                        uiState.groupedTasks.upcoming.size
+                    Text(
+                        text = if (activeCount == 0) "暂无待办 DDL" else "共 $activeCount 项未完成 DDL",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            )
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = "设置",
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddTaskClick,
+                modifier = Modifier.size(62.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
-                    contentDescription = "新建 DDL"
+                    contentDescription = "新建 DDL",
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -241,10 +246,10 @@ fun HomeScreen(
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        top = 8.dp,
-                        bottom = 96.dp
+                        top = 10.dp,
+                        bottom = 104.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     taskGroupSection(
                         title = "已逾期",
@@ -290,18 +295,18 @@ fun HomeScreen(
                             ) {
                                 Text(
                                     text = "已完成 (${completedItems.size})",
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Icon(
                                     imageVector = if (uiState.isCompletedExpanded) {
-                                        Icons.Outlined.ExpandLess
+                                        Icons.Outlined.KeyboardArrowUp
                                     } else {
-                                        Icons.Outlined.ExpandMore
+                                        Icons.Outlined.KeyboardArrowDown
                                     },
                                     contentDescription = if (uiState.isCompletedExpanded) "收起已完成" else "展开已完成",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
@@ -312,15 +317,13 @@ fun HomeScreen(
                                 key = { "task_${it.taskWithTag.task.id}" }
                             ) { item ->
                                 val task = item.taskWithTag.task
-                                AnimatedVisibility(visible = true) {
-                                    TaskCard(
-                                        item = item,
-                                        semesterStartMonday = uiState.semesterStartMonday,
-                                        referenceYear = uiState.referenceYear,
-                                        onToggleCompletion = { viewModel.toggleTaskCompletion(task) },
-                                        onClick = { onEditTaskClick(task.id) }
-                                    )
-                                }
+                                TaskCard(
+                                    item = item,
+                                    semesterStartMonday = uiState.semesterStartMonday,
+                                    referenceYear = uiState.referenceYear,
+                                    onToggleCompletion = { viewModel.toggleTaskCompletion(task) },
+                                    onClick = { onEditTaskClick(task.id) }
+                                )
                             }
                         }
                     }
@@ -344,10 +347,10 @@ private fun LazyListScope.taskGroupSection(
     item(key = "section_$title") {
         Text(
             text = "$title (${items.size})",
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.titleSmall,
             color = headerColor,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp, start = 4.dp)
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 4.dp)
         )
     }
 
@@ -380,16 +383,16 @@ private fun NotificationPermissionHintBanner(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Outlined.NotificationsOff,
+                imageVector = AppIcons.NotificationsOff,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = "未开启通知权限，无法在状态栏常驻显示今日 DDL",
                 style = MaterialTheme.typography.bodyMedium,
@@ -410,14 +413,19 @@ private fun TagFilterRow(
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item(key = "tag_all") {
             FilterChip(
                 selected = selectedTagId == null,
                 onClick = { onSelectTag(null) },
-                label = { Text("全部") }
+                label = {
+                    Text(
+                        text = "全部",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             )
         }
         items(items = tags, key = { "filter_tag_${it.id}" }) { tag ->
@@ -430,12 +438,17 @@ private fun TagFilterRow(
                 leadingIcon = {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(10.dp)
                             .clip(CircleShape)
                             .background(Color(tag.colorHex))
                     )
                 },
-                label = { Text(tag.name) }
+                label = {
+                    Text(
+                        text = tag.name,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             )
         }
     }
@@ -480,20 +493,26 @@ private fun TaskCard(
         UrgencyLevel.NORMAL_NEUTRAL, UrgencyLevel.COMPLETED_MUTED -> urgencyPalette.neutralContent
     }
 
-    val dueDate = LocalDate.ofEpochDay(task.dueDateEpochDay)
-    val scheduleText = SemesterDateCalculator.formatTaskDueSchedule(
-        dueDate = dueDate,
-        dueTimeMinutes = task.dueTimeMinutes,
-        semesterStartMonday = semesterStartMonday,
-        referenceYear = referenceYear
-    )
+    val scheduleText = remember(
+        task.dueDateEpochDay,
+        task.dueTimeMinutes,
+        semesterStartMonday,
+        referenceYear
+    ) {
+        SemesterDateCalculator.formatTaskDueSchedule(
+            dueDate = LocalDate.ofEpochDay(task.dueDateEpochDay),
+            dueTimeMinutes = task.dueTimeMinutes,
+            semesterStartMonday = semesterStartMonday,
+            referenceYear = referenceYear
+        )
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (task.isCompleted) 0.65f else 1f)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardContainerColor),
         border = cardBorder,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -501,7 +520,7 @@ private fun TaskCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
+                .padding(start = 6.dp, end = 14.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -513,7 +532,7 @@ private fun TaskCard(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = task.title,
@@ -525,7 +544,7 @@ private fun TaskCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (tag != null) {
                         val tagColor = Color(tag.colorHex)
@@ -538,7 +557,7 @@ private fun TaskCard(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = tagColor,
                                 maxLines = 1,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                             )
                         }
                     }
@@ -553,10 +572,10 @@ private fun TaskCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = badgeContainerColor
             ) {
                 Text(
@@ -565,7 +584,7 @@ private fun TaskCard(
                     color = badgeContentColor,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
                 )
             }
         }
@@ -585,15 +604,15 @@ private fun EmptyTasksPlaceholder(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.CheckCircleOutline,
+                imageVector = Icons.Outlined.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(68.dp)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (hasFilter) "当前标签下暂无任务" else "暂无 DDL 任务",
                 style = MaterialTheme.typography.titleMedium

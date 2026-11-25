@@ -1,8 +1,10 @@
 package com.todayddl.app.data.local.entity
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "tags")
 data class TagEntity(
     @PrimaryKey(autoGenerate = true)

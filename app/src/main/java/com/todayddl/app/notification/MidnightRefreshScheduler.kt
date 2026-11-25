@@ -4,9 +4,9 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicLong
 
 class MidnightRefreshScheduler(private val context: Context) {
 
@@ -15,43 +15,36 @@ class MidnightRefreshScheduler(private val context: Context) {
         private const val REQUEST_CODE = 4001
     }
 
-    fun scheduleNextMidnightRefresh(today: LocalDate = LocalDate.now()) {
+    private val lastScheduledTargetEpochDay = AtomicLong(Long.MIN_VALUE)
+
+    /**
+     * Schedules a non-wakeup [AlarmManager.RTC] alarm for the next day so the device
+     * stays in deep sleep overnight and silently refreshes once naturally awake.
+     */
+    fun scheduleNextMidnightRefresh(
+        today: LocalDate = LocalDate.now(),
+        force: Boolean = false
+    ) {
+        val targetDate = today.plusDays(1)
+        val targetEpochDay = targetDate.toEpochDay()
+        if (!force && lastScheduledTargetEpochDay.get() == targetEpochDay) {
+            return
+        }
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val nextRefreshMillis = today
-            .plusDays(1)
+        val nextRefreshMillis = targetDate
             .atTime(0, 0, 5)
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
 
         val pendingIntent = buildPendingIntent()
-        val canExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            alarmManager.canScheduleExactAlarms()
-        } else {
-            true
-        }
-
-        if (canExact) {
-            try {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    nextRefreshMillis,
-                    pendingIntent
-                )
-            } catch (_: SecurityException) {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    nextRefreshMillis,
-                    pendingIntent
-                )
-            }
-        } else {
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                nextRefreshMillis,
-                pendingIntent
-            )
-        }
+        alarmManager.setAndAllowWhileIdle(
+            AlarmManager.RTC,
+            nextRefreshMillis,
+            pendingIntent
+        )
+        lastScheduledTargetEpochDay.set(targetEpochDay)
     }
 
     private fun buildPendingIntent(): PendingIntent {

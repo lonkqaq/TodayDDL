@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,13 +36,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.BatteryChargingFull
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -87,6 +86,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.todayddl.app.data.local.entity.TagEntity
+import com.todayddl.app.ui.theme.AppIcons
 import com.todayddl.app.ui.viewmodel.AppViewModelProvider
 import com.todayddl.app.ui.viewmodel.SettingsViewModel
 import java.time.Instant
@@ -189,7 +189,7 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.CalendarMonth,
+                            imageVector = Icons.Outlined.DateRange,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -268,19 +268,19 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(14.dp)
+                                    .size(16.dp)
                                     .clip(CircleShape)
                                     .background(Color(tag.colorHex))
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = tag.name,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1f)
                             )
@@ -288,15 +288,15 @@ fun SettingsScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
                                     contentDescription = "编辑标签",
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             IconButton(onClick = { deletingTag = tag }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    imageVector = Icons.Outlined.Delete,
                                     contentDescription = "删除标签",
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
@@ -307,7 +307,7 @@ fun SettingsScreen(
             // 3. 权限与常驻状态自检
             SettingsSectionCard(title = "权限与常驻状态自检") {
                 PermissionCheckRow(
-                    icon = Icons.Outlined.NotificationsActive,
+                    icon = Icons.Outlined.Notifications,
                     title = "通知权限",
                     statusText = if (permissionSnapshot.hasNotificationPermission) {
                         "已开启（常驻通知与提醒正常）"
@@ -333,7 +333,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 PermissionCheckRow(
-                    icon = Icons.Outlined.Alarm,
+                    icon = AppIcons.Alarm,
                     title = "精确闹钟权限",
                     statusText = if (permissionSnapshot.hasExactAlarmPermission) {
                         "已授权（支持准点弹窗与零点刷新）"
@@ -348,7 +348,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 PermissionCheckRow(
-                    icon = Icons.Outlined.BatteryChargingFull,
+                    icon = AppIcons.BatteryCharging,
                     title = "电池优化白名单",
                     statusText = if (permissionSnapshot.isIgnoringBatteryOptimizations) {
                         "已加入白名单（后台更稳定）"
@@ -368,6 +368,7 @@ fun SettingsScreen(
                 ) {
                     OutlinedButton(
                         onClick = viewModel::refreshOngoingNotificationNow,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
@@ -376,14 +377,15 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("刷新常驻通知")
+                        Text("刷新常驻通知", maxLines = 1)
                     }
 
                     Button(
                         onClick = viewModel::sendTestReminder,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("发送测试提醒")
+                        Text("发送测试提醒", maxLines = 1)
                     }
                 }
             }
@@ -486,11 +488,11 @@ private fun SettingsSectionCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -498,13 +500,13 @@ private fun SettingsSectionCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
                 headerAction?.invoke()
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             content()
         }
     }
@@ -526,6 +528,7 @@ private fun PermissionCheckRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
+            modifier = Modifier.size(26.dp),
             tint = if (isHealthy) {
                 MaterialTheme.colorScheme.primary
             } else {

@@ -4,10 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.todayddl.app.TodayDdlApplication
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 
 class ReminderAlarmReceiver : BroadcastReceiver() {
@@ -19,19 +17,21 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         val app = context.applicationContext as? TodayDdlApplication ?: return
         val pendingResult = goAsync()
 
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        app.appScope.launch {
             try {
-                val container = app.container
-                val taskWithTag = container.repository.getTaskWithTagById(taskId) ?: return@launch
-                if (taskWithTag.task.isCompleted) return@launch
+                withTimeoutOrNull(8_000L) {
+                    val container = app.container
+                    val taskWithTag = container.repository.getTaskWithTagById(taskId) ?: return@withTimeoutOrNull
+                    if (taskWithTag.task.isCompleted) return@withTimeoutOrNull
 
-                val prefs = container.preferencesRepository.getPreferencesOnce()
-                val semesterStartMonday = LocalDate.ofEpochDay(prefs.semesterStartMondayEpochDay)
-                container.reminderScheduler.showReminderNotification(
-                    task = taskWithTag.task,
-                    tagName = taskWithTag.tag?.name,
-                    semesterStartMonday = semesterStartMonday
-                )
+                    val prefs = container.preferencesRepository.getPreferencesOnce()
+                    val semesterStartMonday = LocalDate.ofEpochDay(prefs.semesterStartMondayEpochDay)
+                    container.reminderScheduler.showReminderNotification(
+                        task = taskWithTag.task,
+                        tagName = taskWithTag.tag?.name,
+                        semesterStartMonday = semesterStartMonday
+                    )
+                }
             } finally {
                 pendingResult.finish()
             }

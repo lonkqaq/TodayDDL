@@ -1,5 +1,6 @@
 package com.todayddl.app.ui.viewmodel
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,6 +40,7 @@ private data class EditorDraft(
     val isSaving: Boolean = false
 )
 
+@Immutable
 data class TaskEditorUiState(
     val isEditMode: Boolean = false,
     val isLoaded: Boolean = false,

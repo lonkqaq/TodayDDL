@@ -149,4 +149,34 @@ class TaskStatusCalculatorTest {
         assertEquals(0, onlyTagA.upcoming.size)
         assertEquals(1, onlyTagA.completed.size)
     }
+
+    @Test
+    fun computeNextUiRefreshDelayMillis_adaptsToTaskUrgency() {
+        val now = LocalDateTime.of(2026, 11, 25, 14, 0, 0)
+
+        // All-day task only -> sleeps until midnight (10 hours = 36,000,000ms + 150ms)
+        val allDayOnly = TaskStatusCalculator.groupAndSortForHome(
+            listOf(TaskWithTag(makeTask(id = 1, dueDate = today, dueTimeMinutes = null), null)),
+            null,
+            now
+        )
+        assertEquals(10L * 3600L * 1000L + 150L, TaskStatusCalculator.computeNextUiRefreshDelayMillis(allDayOnly, now))
+
+        // Timed task 3h 30m away -> next hour text change is in 30m + 1s (from "剩 3 小时" to "剩 2 小时" at 2h59m59s)
+        val in3h30m = TaskStatusCalculator.groupAndSortForHome(
+            listOf(TaskWithTag(makeTask(id = 2, dueDate = today, dueTimeMinutes = 17 * 60 + 30), null)),
+            null,
+            now
+        )
+        assertEquals((30L * 60L + 1L) * 1000L + 150L, TaskStatusCalculator.computeNextUiRefreshDelayMillis(in3h30m, now))
+
+        // Timed task 25m 10s away -> next minute text change is in 10s
+        val nowWithSec = LocalDateTime.of(2026, 11, 25, 17, 34, 50)
+        val in25m10s = TaskStatusCalculator.groupAndSortForHome(
+            listOf(TaskWithTag(makeTask(id = 3, dueDate = today, dueTimeMinutes = 18 * 60), null)),
+            null,
+            nowWithSec
+        )
+        assertEquals(10L * 1000L + 150L, TaskStatusCalculator.computeNextUiRefreshDelayMillis(in25m10s, nowWithSec))
+    }
 }

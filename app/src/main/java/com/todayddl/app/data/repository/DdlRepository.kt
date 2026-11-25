@@ -13,6 +13,7 @@ import com.todayddl.app.notification.OngoingNotificationHelper
 import com.todayddl.app.notification.ReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.util.concurrent.atomic.AtomicBoolean
 
 class DdlRepository(
     private val taskDao: TaskDao,
@@ -22,11 +23,14 @@ class DdlRepository(
     private val reminderScheduler: ReminderScheduler,
     private val midnightRefreshScheduler: MidnightRefreshScheduler
 ) {
+    private val initialized = AtomicBoolean(false)
+
     val tasksWithTagFlow: Flow<List<TaskWithTag>> = taskDao.observeAllTasksWithTag()
     val tagsFlow: Flow<List<TagEntity>> = tagDao.observeAllTags()
     val preferencesFlow: Flow<AppPreferences> = preferencesRepository.preferencesFlow
 
     suspend fun initializeDefaults() {
+        if (!initialized.compareAndSet(false, true)) return
         preferencesRepository.ensureInitialized()
         if (!preferencesRepository.isInitialTagsSeeded()) {
             if (tagDao.getAllTagsOnce().isEmpty()) {
@@ -38,14 +42,14 @@ class DdlRepository(
     }
 
     suspend fun restoreNotificationsAndAlarms() {
-        ongoingNotificationHelper.refreshOngoingNotification()
-        midnightRefreshScheduler.scheduleNextMidnightRefresh()
+        ongoingNotificationHelper.refreshOngoingNotification(force = true)
+        midnightRefreshScheduler.scheduleNextMidnightRefresh(force = true)
         reminderScheduler.rescheduleAll(taskDao.getIncompleteTasksOnce())
     }
 
-    suspend fun refreshOngoingAndMidnightOnly() {
-        ongoingNotificationHelper.refreshOngoingNotification()
-        midnightRefreshScheduler.scheduleNextMidnightRefresh()
+    suspend fun refreshOngoingAndMidnightOnly(force: Boolean = false) {
+        ongoingNotificationHelper.refreshOngoingNotification(force = force)
+        midnightRefreshScheduler.scheduleNextMidnightRefresh(force = force)
     }
 
     suspend fun getTaskWithTagById(id: Long): TaskWithTag? = taskDao.getTaskWithTagById(id)

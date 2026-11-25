@@ -1,5 +1,6 @@
 package com.todayddl.app.ui.viewmodel
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.todayddl.app.data.local.entity.TagEntity
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+@Immutable
 data class HomeUiState(
     val headerDateText: String = "",
     val semesterStartMonday: LocalDate = SemesterDateCalculator.alignToMonday(LocalDate.now()),
@@ -87,9 +89,9 @@ class HomeViewModel(
         nowFlow.value = LocalDateTime.now()
     }
 
-    fun refreshOngoingNotification() {
+    fun refreshOngoingNotification(force: Boolean = false) {
         viewModelScope.launch {
-            repository.refreshOngoingAndMidnightOnly()
+            repository.refreshOngoingAndMidnightOnly(force = force)
         }
     }
 

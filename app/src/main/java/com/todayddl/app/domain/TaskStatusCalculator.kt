@@ -1,5 +1,6 @@
 package com.todayddl.app.domain
 
+import androidx.compose.runtime.Immutable
 import com.todayddl.app.data.local.entity.TaskEntity
 import com.todayddl.app.data.local.model.TaskWithTag
 import java.time.Duration
@@ -22,6 +23,7 @@ enum class TaskGroup {
     COMPLETED
 }
 
+@Immutable
 data class TaskStatusInfo(
     val isOverdue: Boolean,
     val group: TaskGroup,
@@ -29,11 +31,13 @@ data class TaskStatusInfo(
     val urgencyLevel: UrgencyLevel
 )
 
+@Immutable
 data class HomeTaskItem(
     val taskWithTag: TaskWithTag,
     val status: TaskStatusInfo
 )
 
+@Immutable
 data class GroupedTasks(
     val overdue: List<HomeTaskItem> = emptyList(),
     val today: List<HomeTaskItem> = emptyList(),
@@ -49,6 +53,21 @@ object TaskStatusCalculator {
     private const val SECONDS_PER_MINUTE = 60L
     private const val SECONDS_PER_HOUR = 3600L
     private const val SECONDS_PER_DAY = 86400L
+
+    private val TODAY_ONGOING_COMPARATOR = compareBy<TaskWithTag>(
+        { it.task.dueTimeMinutes == null },
+        { it.task.dueTimeMinutes ?: Int.MAX_VALUE },
+        { it.task.createdAtMillis },
+        { it.task.id }
+    )
+
+    private val HOME_ACTIVE_COMPARATOR = compareBy<HomeTaskItem>(
+        { it.taskWithTag.task.dueDateEpochDay },
+        { it.taskWithTag.task.dueTimeMinutes == null },
+        { it.taskWithTag.task.dueTimeMinutes ?: Int.MAX_VALUE },
+        { it.taskWithTag.task.createdAtMillis },
+        { it.taskWithTag.task.id }
+    )
 
     fun isOverdue(task: TaskEntity, now: LocalDateTime): Boolean {
         if (task.isCompleted) return false
@@ -171,41 +190,24 @@ object TaskStatusCalculator {
         val todayEpochDay = today.toEpochDay()
         return tasks
             .filter { !it.task.isCompleted && it.task.dueDateEpochDay == todayEpochDay }
-            .sortedWith(
-                compareBy<TaskWithTag>(
-                    { it.task.dueTimeMinutes == null },
-                    { it.task.dueTimeMinutes ?: Int.MAX_VALUE },
-                    { it.task.createdAtMillis },
-                    { it.task.id }
-                )
-            )
+            .sortedWith(TODAY_ONGOING_COMPARATOR)
     }
+
+    fun sortTodayOngoingTasks(tasks: List<TaskWithTag>): List<TaskWithTag> =
+        tasks.sortedWith(TODAY_ONGOING_COMPARATOR)
 
     fun groupAndSortForHome(
         tasks: List<TaskWithTag>,
         selectedTagId: Long?,
         now: LocalDateTime
     ): GroupedTasks {
-        val filtered = if (selectedTagId == null) {
-            tasks
-        } else {
-            tasks.filter { it.task.tagId == selectedTagId }
-        }
-
-        val activeComparator = compareBy<HomeTaskItem>(
-            { it.taskWithTag.task.dueDateEpochDay },
-            { it.taskWithTag.task.dueTimeMinutes == null },
-            { it.taskWithTag.task.dueTimeMinutes ?: Int.MAX_VALUE },
-            { it.taskWithTag.task.createdAtMillis },
-            { it.taskWithTag.task.id }
-        )
-
         val overdue = mutableListOf<HomeTaskItem>()
         val today = mutableListOf<HomeTaskItem>()
         val upcoming = mutableListOf<HomeTaskItem>()
         val completed = mutableListOf<HomeTaskItem>()
 
-        for (item in filtered) {
+        for (item in tasks) {
+            if (selectedTagId != null && item.task.tagId != selectedTagId) continue
             val status = evaluate(item.task, now)
             val homeItem = HomeTaskItem(taskWithTag = item, status = status)
             when (status.group) {
@@ -216,13 +218,80 @@ object TaskStatusCalculator {
             }
         }
 
+        overdue.sortWith(HOME_ACTIVE_COMPARATOR)
+        today.sortWith(HOME_ACTIVE_COMPARATOR)
+        upcoming.sortWith(HOME_ACTIVE_COMPARATOR)
+        completed.sortByDescending {
+            it.taskWithTag.task.completedAtMillis ?: it.taskWithTag.task.createdAtMillis
+        }
+
         return GroupedTasks(
-            overdue = overdue.sortedWith(activeComparator),
-            today = today.sortedWith(activeComparator),
-            upcoming = upcoming.sortedWith(activeComparator),
-            completed = completed.sortedByDescending {
-                it.taskWithTag.task.completedAtMillis ?: it.taskWithTag.task.createdAtMillis
-            }
+            overdue = overdue,
+            today = today,
+            upcoming = upcoming,
+            completed = completed
         )
+    }
+
+    /**
+     * Computes the exact delay in milliseconds until any visible countdown text or
+     * date header on the Home screen will next change, avoiding unnecessary 1-minute polling.
+     */
+    fun computeNextUiRefreshDelayMillis(
+        groupedTasks: GroupedTasks,
+        now: LocalDateTime
+    ): Long {
+        val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay()
+        var minDelaySeconds = Duration.between(now, nextMidnight).seconds.coerceAtLeast(1L)
+
+        fun inspectList(items: List<HomeTaskItem>) {
+            for (item in items) {
+                val task = item.taskWithTag.task
+                val exactMinutes = task.dueTimeMinutes ?: continue
+                val dueDateTime = LocalDate.ofEpochDay(task.dueDateEpochDay)
+                    .atTime(exactMinutes / 60, exactMinutes % 60)
+
+                val candidateSeconds = if (now.isAfter(dueDateTime)) {
+                    val overdueSeconds = Duration.between(dueDateTime, now).seconds.coerceAtLeast(1L)
+                    when {
+                        overdueSeconds < SECONDS_PER_HOUR -> {
+                            val toNextMinute = SECONDS_PER_MINUTE - ((overdueSeconds - 1L) % SECONDS_PER_MINUTE)
+                            minOf(toNextMinute, SECONDS_PER_HOUR - overdueSeconds)
+                        }
+                        overdueSeconds < SECONDS_PER_DAY -> {
+                            SECONDS_PER_HOUR - (overdueSeconds % SECONDS_PER_HOUR)
+                        }
+                        else -> {
+                            SECONDS_PER_DAY - (overdueSeconds % SECONDS_PER_DAY)
+                        }
+                    }
+                } else {
+                    val remainSeconds = Duration.between(now, dueDateTime).seconds.coerceAtLeast(0L)
+                    when {
+                        remainSeconds == 0L -> 1L
+                        remainSeconds < SECONDS_PER_HOUR -> {
+                            ((remainSeconds - 1L) % SECONDS_PER_MINUTE) + 1L
+                        }
+                        remainSeconds < SECONDS_PER_DAY -> {
+                            (remainSeconds % SECONDS_PER_HOUR) + 1L
+                        }
+                        else -> {
+                            (remainSeconds % SECONDS_PER_DAY) + 1L
+                        }
+                    }
+                }
+
+                if (candidateSeconds < minDelaySeconds) {
+                    minDelaySeconds = candidateSeconds.coerceAtLeast(1L)
+                }
+            }
+        }
+
+        inspectList(groupedTasks.overdue)
+        inspectList(groupedTasks.today)
+        inspectList(groupedTasks.upcoming)
+
+        // Add small 150ms margin to cross the second boundary cleanly.
+        return minDelaySeconds * 1_000L + 150L
     }
 }

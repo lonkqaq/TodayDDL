@@ -1,6 +1,7 @@
 package com.todayddl.app.data.preferences
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -19,6 +20,7 @@ import java.time.temporal.TemporalAdjusters
 
 private val Context.appDataStore: DataStore<Preferences> by preferencesDataStore(name = "today_ddl_prefs")
 
+@Immutable
 data class AppPreferences(
     val semesterStartMondayEpochDay: Long,
     val hideNotificationWhenEmpty: Boolean
@@ -41,14 +43,24 @@ class AppPreferencesRepository(private val context: Context) {
             }
         }
         .map { prefs ->
-            val defaultMonday = defaultStartMondayEpochDay(LocalDate.now())
             AppPreferences(
-                semesterStartMondayEpochDay = prefs[Keys.SEMESTER_START_MONDAY_EPOCH_DAY] ?: defaultMonday,
+                semesterStartMondayEpochDay = prefs[Keys.SEMESTER_START_MONDAY_EPOCH_DAY]
+                    ?: defaultStartMondayEpochDay(LocalDate.now()),
                 hideNotificationWhenEmpty = prefs[Keys.HIDE_NOTIFICATION_WHEN_EMPTY] ?: false
             )
         }
 
     suspend fun ensureInitialized(today: LocalDate = LocalDate.now()) {
+        val current = context.appDataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .first()
+        if (current[Keys.SEMESTER_START_MONDAY_EPOCH_DAY] != null &&
+            current[Keys.HIDE_NOTIFICATION_WHEN_EMPTY] != null
+        ) {
+            return
+        }
         context.appDataStore.edit { prefs ->
             if (prefs[Keys.SEMESTER_START_MONDAY_EPOCH_DAY] == null) {
                 prefs[Keys.SEMESTER_START_MONDAY_EPOCH_DAY] = defaultStartMondayEpochDay(today)

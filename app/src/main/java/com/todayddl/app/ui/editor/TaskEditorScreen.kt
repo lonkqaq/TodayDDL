@@ -26,10 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -70,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.todayddl.app.domain.SemesterDateCalculator
+import com.todayddl.app.ui.theme.AppIcons
 import com.todayddl.app.ui.viewmodel.AppViewModelProvider
 import com.todayddl.app.ui.viewmodel.DateInputMode
 import com.todayddl.app.ui.viewmodel.TaskEditorViewModel
@@ -107,7 +107,7 @@ fun TaskEditorScreen(
                     if (uiState.isEditMode) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
                             Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
+                                imageVector = Icons.Outlined.Delete,
                                 contentDescription = "删除任务",
                                 tint = MaterialTheme.colorScheme.error
                             )
@@ -122,8 +122,8 @@ fun TaskEditorScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             OutlinedTextField(
                 value = uiState.title,
@@ -170,8 +170,8 @@ fun TaskEditorScreen(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                         ) {
                             Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -180,7 +180,7 @@ fun TaskEditorScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Outlined.CalendarMonth,
+                                            imageVector = Icons.Outlined.DateRange,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary
                                         )
@@ -262,7 +262,7 @@ fun TaskEditorScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.AccessTime,
+                            imageVector = AppIcons.AccessTime,
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -295,7 +295,7 @@ fun TaskEditorScreen(
                             leadingIcon = {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(10.dp)
                                         .clip(CircleShape)
                                         .background(Color(tag.colorHex))
                                 )
@@ -312,10 +312,10 @@ fun TaskEditorScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Outlined.NotificationsActive,
+                        imageVector = Icons.Outlined.Notifications,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -354,10 +354,11 @@ fun TaskEditorScreen(
                 enabled = !uiState.isSaving,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(54.dp)
             ) {
                 Text(
                     text = if (uiState.isEditMode) "保存修改" else "添加 DDL",
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -485,8 +486,8 @@ private fun SemesterWeekDaySelector(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -500,7 +501,7 @@ private fun SemesterWeekDaySelector(
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalIconButton(
                         onClick = {
@@ -509,7 +510,7 @@ private fun SemesterWeekDaySelector(
                             }
                         },
                         enabled = selectedWeek > SemesterDateCalculator.MIN_WEEK,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Text("-", fontWeight = FontWeight.Bold)
                     }
@@ -524,7 +525,7 @@ private fun SemesterWeekDaySelector(
                             }
                         },
                         enabled = selectedWeek < SemesterDateCalculator.MAX_WEEK,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Text("+", fontWeight = FontWeight.Bold)
                     }

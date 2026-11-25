@@ -1,6 +1,7 @@
 package com.todayddl.app.notification
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.todayddl.app.MainActivity
 import com.todayddl.app.R
 import com.todayddl.app.data.local.dao.TaskDao
+import com.todayddl.app.data.local.model.TaskWithTag
 import com.todayddl.app.data.preferences.AppPreferencesRepository
 import com.todayddl.app.domain.SemesterDateCalculator
 import com.todayddl.app.domain.TaskStatusCalculator
@@ -28,22 +30,38 @@ class OngoingNotificationHelper(
         private const val DISMISS_REQUEST_CODE = 101
     }
 
-    suspend fun refreshOngoingNotification(today: LocalDate = LocalDate.now()) {
-        NotificationChannels.ensureChannelsCreated(context)
-        val notificationManager = NotificationManagerCompat.from(context)
+    @Volatile
+    private var lastPostedSignature: String? = null
 
+    suspend fun refreshOngoingNotification(
+        today: LocalDate = LocalDate.now(),
+        force: Boolean = false
+    ) {
         val prefs = preferencesRepository.getPreferencesOnce()
-        val allTasks = taskDao.getAllTasksWithTagOnce()
-        val todayTasks = TaskStatusCalculator.filterAndSortTodayOngoingTasks(allTasks, today)
+        val todayTasks = TaskStatusCalculator.sortTodayOngoingTasks(
+            taskDao.getIncompleteTasksWithTagForDay(today.toEpochDay())
+        )
 
         if (todayTasks.isEmpty() && prefs.hideNotificationWhenEmpty) {
-            notificationManager.cancel(ONGOING_NOTIFICATION_ID)
+            if (lastPostedSignature != null || isOngoingNotificationActive()) {
+                NotificationManagerCompat.from(context).cancel(ONGOING_NOTIFICATION_ID)
+                lastPostedSignature = null
+            }
             return
         }
 
         if (!hasPostNotificationPermission()) {
+            lastPostedSignature = null
             return
         }
+
+        val signature = buildSignature(today.toEpochDay(), todayTasks)
+        if (!force && signature == lastPostedSignature && isOngoingNotificationActive()) {
+            return
+        }
+
+        NotificationChannels.ensureChannelsCreated(context)
+        val notificationManager = NotificationManagerCompat.from(context)
 
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -106,8 +124,9 @@ class OngoingNotificationHelper(
 
         try {
             notificationManager.notify(ONGOING_NOTIFICATION_ID, builder.build())
+            lastPostedSignature = signature
         } catch (_: SecurityException) {
-            // Permission may be revoked concurrently on Android 13+
+            lastPostedSignature = null
         }
     }
 
@@ -120,5 +139,28 @@ class OngoingNotificationHelper(
             if (!granted) return false
         }
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+
+    private fun isOngoingNotificationActive(): Boolean {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return false
+        return manager.activeNotifications.any { it.id == ONGOING_NOTIFICATION_ID }
+    }
+
+    private fun buildSignature(todayEpochDay: Long, tasks: List<TaskWithTag>): String {
+        if (tasks.isEmpty()) return "$todayEpochDay:empty"
+        return buildString(tasks.size * 32) {
+            append(todayEpochDay)
+            for (item in tasks) {
+                append('|')
+                append(item.task.id)
+                append(':')
+                append(item.task.title)
+                append(':')
+                append(item.task.dueTimeMinutes)
+                append(':')
+                append(item.tag?.name)
+            }
+        }
     }
 }

@@ -17,8 +17,8 @@ interface TaskDao {
     fun observeAllTasksWithTag(): Flow<List<TaskWithTag>>
 
     @Transaction
-    @Query("SELECT * FROM tasks")
-    suspend fun getAllTasksWithTagOnce(): List<TaskWithTag>
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND dueDateEpochDay = :epochDay")
+    suspend fun getIncompleteTasksWithTagForDay(epochDay: Long): List<TaskWithTag>
 
     @Transaction
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")

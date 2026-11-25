@@ -8,7 +8,11 @@ object NotificationChannels {
     const val TODAY_ONGOING_CHANNEL_ID = "today_ongoing_channel"
     const val DDL_REMINDER_CHANNEL_ID = "ddl_reminder_channel"
 
+    @Volatile
+    private var channelsInitialized: Boolean = false
+
     fun ensureChannelsCreated(context: Context) {
+        if (channelsInitialized) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
         val ongoingChannel = NotificationChannel(
@@ -35,5 +39,6 @@ object NotificationChannels {
 
         manager.createNotificationChannel(ongoingChannel)
         manager.createNotificationChannel(reminderChannel)
+        channelsInitialized = true
     }
 }

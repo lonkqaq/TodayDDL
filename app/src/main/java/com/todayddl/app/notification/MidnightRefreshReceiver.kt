@@ -4,10 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.todayddl.app.TodayDdlApplication
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MidnightRefreshReceiver : BroadcastReceiver() {
 
@@ -15,10 +13,12 @@ class MidnightRefreshReceiver : BroadcastReceiver() {
         val app = context.applicationContext as? TodayDdlApplication ?: return
         val pendingResult = goAsync()
 
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        app.appScope.launch {
             try {
-                app.container.ongoingNotificationHelper.refreshOngoingNotification()
-                app.container.midnightRefreshScheduler.scheduleNextMidnightRefresh()
+                withTimeoutOrNull(8_000L) {
+                    app.container.ongoingNotificationHelper.refreshOngoingNotification()
+                    app.container.midnightRefreshScheduler.scheduleNextMidnightRefresh()
+                }
             } finally {
                 pendingResult.finish()
             }

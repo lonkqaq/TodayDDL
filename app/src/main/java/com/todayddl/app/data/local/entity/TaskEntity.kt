@@ -1,10 +1,12 @@
 package com.todayddl.app.data.local.entity
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(
     tableName = "tasks",
     foreignKeys = [

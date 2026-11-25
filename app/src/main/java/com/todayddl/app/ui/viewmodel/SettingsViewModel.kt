@@ -1,5 +1,6 @@
 package com.todayddl.app.ui.viewmodel
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.todayddl.app.data.local.entity.TagEntity
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+@Immutable
 data class SettingsUiState(
     val semesterStartMonday: LocalDate = SemesterDateCalculator.alignToMonday(LocalDate.now()),
     val hideNotificationWhenEmpty: Boolean = false,
@@ -85,7 +87,7 @@ class SettingsViewModel(
 
     fun refreshOngoingNotificationNow() {
         viewModelScope.launch {
-            repository.refreshOngoingAndMidnightOnly()
+            repository.refreshOngoingAndMidnightOnly(force = true)
             statusMessageFlow.value = if (repository.hasPostNotificationPermission()) {
                 "已刷新状态栏常驻通知"
             } else {
