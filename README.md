@@ -1,6 +1,6 @@
 # TodayDDL
 
-一款面向高校学生与个人日常的轻量级 Android 截止日期（DDL）管理应用。
+用Gemini Vibe了一款高校学生与个人日常的轻量级 Android 截止日期（DDL）管理应用。
 
 ## 核心功能
 
